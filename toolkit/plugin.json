@@ -1,7 +1,0 @@
-{
-  "name": "toolkit",
-  "version": "1.0.0",
-  "description": "Cross-compile helper: inspect toolchains and diagnose plugin setup",
-  "entry": "src/main.go",
-  "enabled": true
-}

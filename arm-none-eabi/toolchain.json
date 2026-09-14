@@ -1,0 +1,30 @@
+{
+  "name": "arm-none-eabi",
+  "version": "15.3.rel1",
+  "display_name": "ARM GNU Toolchain 15.3.rel1 (arm-none-eabi)",
+  "host": "x86_64-linux-gnu",
+  "prefix": "arm-none-eabi",
+  "target_os": "none",
+  "tools": {
+    "cc": "arm-none-eabi-gcc",
+    "cxx": "arm-none-eabi-g++",
+    "ar": "arm-none-eabi-ar",
+    "ld": "arm-none-eabi-gcc",
+    "strip": "arm-none-eabi-strip",
+    "ranlib": "arm-none-eabi-ranlib",
+    "objcopy": "arm-none-eabi-objcopy",
+    "size": "arm-none-eabi-size",
+    "objdump": "arm-none-eabi-objdump",
+    "nm": "arm-none-eabi-nm"
+  },
+  "default_flags": {
+    "cflags": ["-mcpu=cortex-m4", "-mthumb", "-Os", "-ffunction-sections", "-fdata-sections"],
+    "cxxflags": ["-mcpu=cortex-m4", "-mthumb", "-Os", "-ffunction-sections", "-fdata-sections"],
+    "ldflags": ["-mcpu=cortex-m4", "-mthumb", "-Wl,--gc-sections"]
+  },
+  "install": {
+    "method": "lfs",
+    "file": "arm-none-eabi-15.3.rel1.tar.xz",
+    "format": "tar.xz"
+  }
+}

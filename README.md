@@ -28,14 +28,27 @@ definition. A repository may hold any mix of both.
 
 ## Try it
 
+`vmake ext add` runs `git clone`, so the source directory itself is **not** directly
+addable. `examples/plugins/.git-scaffold` preserves this scaffold's own commit
+history under a non-standard name — if it stayed `.git`, git would record the whole
+directory as a gitlink inside the vmake repository instead of as plain files.
+Copy it out and make it a real repo:
+
 ```bash
-vmake ext add scaffold file://$PWD/examples/plugins   # any git URL works
+cp -r examples/plugins /tmp/myext && rm -rf /tmp/myext/.git-scaffold
+cd /tmp/myext && git init && git add -A && git commit -m "my extensions"
+
+vmake ext add myext file:///tmp/myext
 vmake hello greet alice
 vmake hello where
 vmake toolkit doctor
 vmake toolkit toolchains
 vmake toolchain list                                  # riscv-none-elf shows up
 ```
+
+Verified against a real build: both plugins load, subcommands execute, `toolkit`
+registers `riscv-none-elf` globally, and `SetOnMissing` fires when that toolchain
+is selected while uninstalled.
 
 ## `plugin.json`
 

@@ -1,0 +1,7 @@
+{
+  "name": "tools",
+  "version": "1.0.0",
+  "description": "Cross-compile helper: registered toolchains and plugin diagnostics",
+  "entry": "src/main.go",
+  "enabled": true
+}
