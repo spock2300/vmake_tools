@@ -1,0 +1,22 @@
+{
+  "name": "riscv-none-elf",
+  "version": "13.2.0",
+  "display_name": "RISC-V bare-metal GCC 13.2.0",
+  "host": "x86_64-linux-gnu",
+  "prefix": "riscv-none-elf",
+  "tools": {
+    "cc": "riscv-none-elf-gcc",
+    "cxx": "riscv-none-elf-g++",
+    "ar": "riscv-none-elf-ar",
+    "ld": "riscv-none-elf-ld",
+    "strip": "riscv-none-elf-strip",
+    "objcopy": "riscv-none-elf-objcopy",
+    "size": "riscv-none-elf-size",
+    "nm": "riscv-none-elf-nm"
+  },
+  "default_flags": {
+    "cflags": ["-march=rv32imac", "-mabi=ilp32", "-Os"],
+    "cxxflags": ["-march=rv32imac", "-mabi=ilp32", "-Os"],
+    "ldflags": ["-march=rv32imac", "-mabi=ilp32"]
+  }
+}

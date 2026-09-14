@@ -1,0 +1,7 @@
+{
+  "name": "hello",
+  "version": "1.0.0",
+  "description": "Minimal extension plugin: one command, no state",
+  "entry": "src/main.go",
+  "enabled": true
+}
