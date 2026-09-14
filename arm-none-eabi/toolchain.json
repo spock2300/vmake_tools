@@ -1,6 +1,6 @@
 {
   "name": "arm-none-eabi",
-  "version": "15.3.rel1",
+  "version": "arm-gnu-toolchain-15.3.rel1-x86_64-arm-none-eabi",
   "display_name": "ARM GNU Toolchain 15.3.rel1 (arm-none-eabi)",
   "host": "x86_64-linux-gnu",
   "prefix": "arm-none-eabi",
@@ -24,7 +24,7 @@
   },
   "install": {
     "method": "lfs",
-    "file": "arm-none-eabi-15.3.rel1.tar.xz",
+    "file": "arm-gnu-toolchain-15.3.rel1-x86_64-arm-none-eabi.tar.xz",
     "format": "tar.xz"
   }
 }
