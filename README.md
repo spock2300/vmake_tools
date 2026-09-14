@@ -1,7 +1,7 @@
-# vmake Extension Plugin Scaffold
+# vmake Extension Plugins
 
-A minimal, working extension repository: two plugins, one declarative toolchain,
-and a 153 MiB toolchain archive shipped through Git LFS.
+A working vmake extension repository: two plugins, one declarative toolchain, and
+the upstream ARM GNU Toolchain archive (153 MiB) shipped through Git LFS.
 
 Plugins are **interpreted by yaegi at runtime** — no `go build`, no `.so`, no
 `go.mod`. `vmake` interprets the sources on every invocation.
@@ -9,7 +9,7 @@ Plugins are **interpreted by yaegi at runtime** — no `go build`, no `.so`, no
 ## Layout
 
 ```
-examples/plugins/                          <- an extension REPOSITORY (a git repo)
+.
 ├── hello/
 │   ├── plugin.json                        <- name: hello
 │   └── src/main.go                        <- entry: src/main.go
@@ -19,19 +19,17 @@ examples/plugins/                          <- an extension REPOSITORY (a git rep
 ├── arm-none-eabi/
 │   └── toolchain.json                     <- declarative toolchain + install block
 └── assets/toolchains/
-    └── arm-none-eabi-15.3.rel1.tar.xz     <- Git LFS object (153 MiB)
+    └── arm-gnu-toolchain-15.3.rel1-x86_64-arm-none-eabi.tar.xz   <- Git LFS object
 ```
 
 `vmake` walks `~/.vmake/extensions/<repo>/<subdir>/`. A subdirectory containing
 `plugin.json` is a plugin; one containing `toolchain.json` is a toolchain
 definition. A repository may hold any mix of both.
 
-## Try it
-
-This directory *is* a git repository, so it can be added directly:
+## Usage
 
 ```bash
-vmake ext add scaffold file://$PWD/examples/plugins   # or the hosted git URL
+vmake ext add vmake-tools git@github.com:spock2300/vmake_tools.git
 
 vmake hello greet alice
 vmake hello where
@@ -40,17 +38,15 @@ vmake tools show
 vmake tools doctor
 ```
 
-Then cross-compile with the shipped toolchain — the 153 MiB archive is fetched
-through Git LFS on first use:
+Cross-compile with the shipped toolchain — the archive is fetched through Git LFS
+on first use:
 
 ```bash
-vmake build --toolchain arm-none-eabi
+vmake build --toolchain arm-gnu-toolchain-15.3.rel1-x86_64-arm-none-eabi
 ```
 
-Verified end to end: both plugins load, `tools` registers `arm-none-eabi` from
-`arm-none-eabi/toolchain.json`, and selecting it while uninstalled triggers
-`git lfs pull` → extract → register, after which `arm-none-eabi-gcc` resolves to
-`~/.vmake/toolchains/arm-none-eabi-15.3.rel1/bin/arm-none-eabi-gcc`.
+Verified end to end: the toolchain auto-downloads, extracts, registers, and
+compiles and links `main.c` into `ELF 32-bit LSB executable, ARM, EABI5`.
 
 ## `plugin.json`
 
@@ -62,7 +58,7 @@ Verified end to end: both plugins load, `tools` registers `arm-none-eabi` from
 | `version` | no | Shown by `vmake ext list` |
 | `description` | no | Becomes the root command's `Short` text |
 
-## The contract
+## The plugin contract
 
 These are the rules the loader actually enforces (`pkg/plugin/loader.go`).
 
@@ -105,60 +101,74 @@ These are the rules the loader actually enforces (`pkg/plugin/loader.go`).
 
 ## What the examples demonstrate
 
-`hello/src/main.go` — the minimum viable plugin: two subcommands, positional
-args via `cobra.MaximumNArgs`, reading `ctx.PluginDir` / `ctx.CommandName`.
+`hello/src/main.go` — the minimum viable plugin: two subcommands, positional args
+via `cobra.MaximumNArgs`, reading `ctx.PluginDir` / `ctx.CommandName`.
 
 `tools/src/main.go` — the declarative path. `Main` calls
 `ctx.RegisterToolchainsFromRepo()`, which walks the repository root, registers
 every `toolchain.json` it finds, and wires auto-download for any that declare an
 `install` block. **Without that call a `toolchain.json` is inert** — nothing scans
-it implicitly. `tools show` prints the declared definitions;
-`tools doctor` also prints registered state and host tool lookup.
+it implicitly. `tools show` prints the declared definitions; `tools doctor` also
+prints registered state plus host tool lookup.
 
-Because `arm-none-eabi/toolchain.json` carries the `install` block, selecting
-`--toolchain arm-none-eabi` runs the built-in downloader: `git lfs pull` →
-`ExtractToDir` → `RegisterToolchain`. No plugin code is involved in the download.
+Because `arm-none-eabi/toolchain.json` carries the `install` block, selecting the
+toolchain runs vmake's built-in downloader (`makeAutoDownload` in
+`cmd/vmake/ext_cmd.go`): `git lfs pull` → `ExtractToDir` → `RegisterToolchain`.
+No plugin code participates in the download.
 
-## Shipping a toolchain through Git LFS
+## The archive is shipped pristine — and that dictates the toolchain name
 
-`.gitattributes` tracks `assets/toolchains/*.tar.*` with the `lfs` filter, so the
-archive becomes a ~134-byte pointer in git history while the bytes live in LFS
-storage. Confirm with:
+Git LFS stores the **unmodified upstream archive**:
+`arm-gnu-toolchain-15.3.rel1-x86_64-arm-none-eabi.tar.xz`, sha256
+`563bebb2b97d53382b956d6ee1fe61e2cae26699901417234a37df505ef9b5fa`.
+`git lfs ls-files` lists it; the blob in git history is a 134-byte pointer.
 
-```bash
-git lfs ls-files
-git cat-file -s HEAD:assets/toolchains/arm-none-eabi-15.3.rel1.tar.xz   # -> 134
+Three facts about `makeAutoDownload` and `ToolchainDef` force the rest of the
+configuration, and none of them are optional:
+
+1. **Assets must live at the repository root**, in `assets/toolchains/`. The
+   download path is hard-coded as `<repoDir>/assets/toolchains/<install.file>`.
+   `install.file` is a bare filename, never a path.
+
+2. **Extraction does no top-level stripping.** The toolchain is installed at
+   `~/.vmake/toolchains/` and only recognised when the directory
+   `<name>-<version>` exists there — `ToolchainDef.ToToolchain` sets `InstallPath`
+   only if that exact path is a real directory. `ToToolchain` appends `-<version>`
+   when `version` is non-empty, so the directory name vmake looks for is
+   either `<name>` or `<name>-<version>`.
+
+3. **No plugin code can rename that directory** on the declarative path, because
+   the downloader is pure vmake (`RegisterToolchainsFromRepo` → `SetOnMissing` →
+   `makeAutoDownload`).
+
+The upstream archive extracts exactly one top-level directory,
+`arm-gnu-toolchain-15.3.rel1-x86_64-arm-none-eabi/`. Since the archive is kept
+pristine, the only way to satisfy facts 2 and 3 together is for `name` to be
+literally that directory name, with `version` omitted so no suffix is appended:
+
+```json
+"name": "arm-gnu-toolchain-15.3.rel1-x86_64-arm-none-eabi"
 ```
 
-Four constraints govern the archive, and all of them come from
-`makeAutoDownload` in `cmd/vmake/ext_cmd.go` plus `ToolchainDef.InstallDir`:
+Hence the long `--toolchain` value — it is not cosmetic. Renaming it to something
+shorter (`arm-none-eabi`) or adding a `version` breaks the install path, and the
+failure is **silent and confusing**: the downloader prints
+`Toolchain ... installed to ...` while `InstallPath` stays empty, and the build
+dies later with `exec: "arm-none-eabi-gcc": executable file not found in $PATH`
+because `ResolveToolPath` fell through to `PATH`.
 
-1. **It must live at the repository root**, in `assets/toolchains/`. The download
-   path is hard-coded as `<repoDir>/assets/toolchains/<install.file>` — assets
-   inside `tools/` would not be found.
-2. **`install.file` is resolved relative to that directory**, so it is a bare
-   filename, never a path.
-3. **Extraction does no top-level stripping.** The toolchain is installed at
-   `~/.vmake/toolchains/<name>-<version>/`, and `RegisterToolchain` only sets
-   `InstallPath` when that exact directory exists (`ToolchainDef.ToToolchain`).
-   The archive's single top-level directory must therefore be named
-   `arm-none-eabi-15.3.rel1`, matching `name` + `version` in `toolchain.json`.
-   The upstream archive instead extracts
-   `arm-gnu-toolchain-15.3.rel1-x86_64-arm-none-eabi/`, so it was repacked with
-   the top-level directory renamed — file modes preserved, contents otherwise
-   byte-identical. Getting this wrong fails quietly: the downloader prints
-   `Toolchain ... installed to ...` while `InstallPath` stays empty and the build
-   dies later with `exec: "arm-none-eabi-gcc": executable file not found in $PATH`.
-4. **`Tools.*` names are looked up as `<InstallPath>/bin/<tool>`** and fall back
-   to `PATH` (`ResolveToolPath`). A `prefix` alone is not enough for optional
-   tools: `objcopy`/`size`/`nm` etc. are resolved from `tc.Prefix + <TOOLNAME>`,
-   i.e. `arm-none-eabi-objcopy`. Declare them explicitly in `tools` for clarity.
+The other two fields are free choices:
+`display_name` carries the readable label, and `prefix: "arm-none-eabi"` supplies
+the compiler prefix for optional tools — `resolveOptionalTool` falls back to
+`tc.Prefix + <TOOLNAME>` (`arm-none-eabi-objcopy`), and the `tools` block declares
+them explicitly anyway.
+
+`ldflags` includes `--specs=nosys.specs`: without it, linking a bare-metal
+`main.c` fails with `undefined reference to '_exit'` from newlib's `libc_a-exit.o`.
 
 Note: `install.sha256` exists in the schema and is parsed into
-`InstallConfig.Sha256`, but **nothing in vmake ever verifies it**. It is omitted
-here rather than implying an integrity check that does not happen. The SHA256 of
-this archive is
-`563bebb2b97d53382b956d6ee1fe61e2cae26699901417234a37df505ef9b5fa`.
+`InstallConfig.Sha256`, but **nothing in vmake ever verifies it** — it is omitted
+rather than implying an integrity check that does not happen.
 
 ## Pitfalls
 
@@ -170,11 +180,10 @@ this archive is
 - **`vmakeDir` is `$HOME/.vmake`**, so `HOME` is the way to sandbox a test.
 - **`vmake ext add` requires a git URL** — it runs `git clone`. A plain directory
   path will not work; use `file:///abs/path`.
-- **`SetOnMissing` is dead code for an installed toolchain.** `Manager.SelectToolchain`
-  consults the `onMissing` handler only when `InstallPath` is empty. The declarative
-  `install` block is the better path precisely because it avoids this trap.
-  `SetOnMissing` is keyed by toolchain name, so several plugins can each own the
-  install strategy for their own toolchain.
+- **`SetOnMissing` is dead code for an installed toolchain.**
+  `Manager.SelectToolchain` consults the `onMissing` handler only when
+  `InstallPath` is empty, which is exactly why the declarative `install` block is
+  the right mechanism here.
 - **Editing a plugin requires no rebuild**, but the extension repo is a clone:
   after committing upstream, run `vmake ext update` to pull, or edit
   `~/.vmake/extensions/<repo>/` directly while iterating.

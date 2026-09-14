@@ -1,6 +1,5 @@
 {
-  "name": "arm-none-eabi",
-  "version": "arm-gnu-toolchain-15.3.rel1-x86_64-arm-none-eabi",
+  "name": "arm-gnu-toolchain-15.3.rel1-x86_64-arm-none-eabi",
   "display_name": "ARM GNU Toolchain 15.3.rel1 (arm-none-eabi)",
   "host": "x86_64-linux-gnu",
   "prefix": "arm-none-eabi",
@@ -18,9 +17,26 @@
     "nm": "arm-none-eabi-nm"
   },
   "default_flags": {
-    "cflags": ["-mcpu=cortex-m4", "-mthumb", "-Os", "-ffunction-sections", "-fdata-sections"],
-    "cxxflags": ["-mcpu=cortex-m4", "-mthumb", "-Os", "-ffunction-sections", "-fdata-sections"],
-    "ldflags": ["-mcpu=cortex-m4", "-mthumb", "-Wl,--gc-sections"]
+    "cflags": [
+      "-mcpu=cortex-m4",
+      "-mthumb",
+      "-Os",
+      "-ffunction-sections",
+      "-fdata-sections"
+    ],
+    "cxxflags": [
+      "-mcpu=cortex-m4",
+      "-mthumb",
+      "-Os",
+      "-ffunction-sections",
+      "-fdata-sections"
+    ],
+    "ldflags": [
+      "-mcpu=cortex-m4",
+      "-mthumb",
+      "--specs=nosys.specs",
+      "-Wl,--gc-sections"
+    ]
   },
   "install": {
     "method": "lfs",
