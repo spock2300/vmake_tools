@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -52,13 +53,21 @@ func Main(ctx *plugin.Context) {
 }
 
 func printDeclared(ctx *plugin.Context) {
-	defs := toolchain.ScanRepoToolchains(ctx.RepoDir)
+	defs, err := toolchain.ScanRepoToolchains(ctx.RepoDir)
+	if err != nil {
+		fmt.Printf("toolchains: %v\n", err)
+		return
+	}
+	fmt.Printf("installation host: %s/%s\n", runtime.GOOS, runtime.GOARCH)
 	fmt.Printf("declared toolchains (%d):\n", len(defs))
 	for i := range defs {
 		def := &defs[i]
 		install := "manual"
-		if def.Install != nil {
-			install = fmt.Sprintf("%s file=%s", def.Install.Method, def.Install.File)
+		selected, err := def.Installation()
+		if err != nil {
+			install = err.Error()
+		} else if selected != nil {
+			install = fmt.Sprintf("%s file=%s root_dir=%s", selected.Method, selected.File, selected.RootDir)
 		}
 		fmt.Printf("  %-16s version=%-10s install=%s\n", def.Name, def.Version, install)
 	}

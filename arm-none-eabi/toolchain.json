@@ -1,8 +1,7 @@
 {
-  "name": "arm-gnu-toolchain-15.3.rel1-x86_64-arm-none-eabi",
+  "name": "arm-none-eabi",
   "display_name": "ARM GNU Toolchain 15.3.rel1 (arm-none-eabi)",
-  "host": "x86_64-linux-gnu",
-  "prefix": "arm-none-eabi",
+  "prefix": "arm-none-eabi-",
   "target_os": "none",
   "tools": {
     "cc": "arm-none-eabi-gcc",
@@ -38,9 +37,22 @@
       "-Wl,--gc-sections"
     ]
   },
-  "install": {
-    "method": "lfs",
-    "file": "arm-gnu-toolchain-15.3.rel1-x86_64-arm-none-eabi.tar.xz",
-    "format": "tar.xz"
+  "version": "15.3.rel1",
+  "target_triple": "arm-none-eabi",
+  "installations": {
+    "linux/amd64": {
+      "method": "lfs",
+      "file": "arm-gnu-toolchain-15.3.rel1-x86_64-arm-none-eabi.tar.xz",
+      "format": "tar.xz",
+      "root_dir": "arm-gnu-toolchain-15.3.rel1-x86_64-arm-none-eabi",
+      "sha256": "563bebb2b97d53382b956d6ee1fe61e2cae26699901417234a37df505ef9b5fa"
+    },
+    "windows/amd64": {
+      "method": "lfs",
+      "file": "arm-gnu-toolchain-15.3.rel1-mingw-w64-x86_64-arm-none-eabi.zip",
+      "format": "zip",
+      "root_dir": ".",
+      "sha256": "b85669d3408e2ae713b17b0cc59bc4ea26369a7f2bd19108fd11df7095f159e6"
+    }
   }
 }
