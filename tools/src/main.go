@@ -15,8 +15,6 @@ import (
 )
 
 func Main(ctx *plugin.Context) {
-	ctx.RegisterToolchainsFromRepo()
-
 	ctx.AddSubCommand(&cobra.Command{
 		Use:   "list",
 		Short: "List toolchains visible to vmake",
@@ -77,11 +75,11 @@ func printRegistered(ctx *plugin.Context) {
 	tcs := ctx.GetToolchains()
 	fmt.Printf("registered toolchains (%d):\n", len(tcs))
 	for name, tc := range tcs {
-		state := "not installed"
-		if tc.InstallPath != "" {
-			state = tc.InstallPath
+		state := "installed"
+		if errs := toolchain.ValidateToolchain(tc); len(errs) > 0 {
+			state = "unavailable"
 		}
-		fmt.Printf("  %-16s %s\n", name, state)
+		fmt.Printf("  %-16s %-12s %s\n", name, state, tc.InstallPath)
 	}
 }
 

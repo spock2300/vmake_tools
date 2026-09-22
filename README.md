@@ -30,7 +30,7 @@ definition. A repository may hold any mix of both.
 ## Usage
 
 ```bash
-vmake ext add vmake-tools https://github.com/spock2300/vmake_tools.git
+vmake ext add vmake-tools git@github.com:spock2300/vmake_tools.git
 
 vmake hello greet alice
 vmake hello where
@@ -47,7 +47,10 @@ vmake build --toolchain arm-none-eabi
 ```
 
 The compiler runs on the current host and produces bare-metal ARM ELF output.
-`target_os: "none"` describes the firmware target; it does not select the archive.
+The target platform belongs to the project, not the toolchain: define global
+options `target_os` (`"none"` for bare metal) and `target_triple`
+(`"arm-none-eabi"`) in `build.go`, together with `-mcpu`/`-mthumb` flags. The
+same compiler definition serves any Cortex-M project.
 
 ## `plugin.json`
 
@@ -105,17 +108,46 @@ These are the rules the loader actually enforces (`pkg/plugin/loader.go`).
 `hello/src/main.go` — the minimum viable plugin: two subcommands, positional args
 via `cobra.MaximumNArgs`, reading `ctx.PluginDir` / `ctx.CommandName`.
 
-`tools/src/main.go` registers the definitions using
-`ctx.RegisterToolchainsFromRepo()`. `tools show` reports the current Go host
-(`linux/amd64` or `windows/amd64`) and its selected archive; `tools doctor` also
-reports registered installation paths and host tools. The core owns downloading,
-extraction, validation, and registration.
+`tools/src/main.go` — read-only diagnostics. `tools list` prints the registered
+toolchains from `ctx.GetToolchains()`; `tools show` / `tools doctor` scan this
+repository for `toolchain.json` definitions and report the selected host archive
+plus installation state. It registers nothing: `vmake` itself scans every
+extension repository and registers the definitions before plugins load. The core
+owns downloading, extraction, validation, and registration.
 
 ## Toolchain definition
 
-The stable name is `arm-none-eabi`, version `15.3.rel1`. `target_triple` is
-`arm-none-eabi`, `target_os` is `none`, and `prefix` is `arm-none-eabi-`, including
-the trailing hyphen expected by `CROSS_COMPILE`.
+The stable name is `arm-none-eabi`, version `15.3.rel1`, and `prefix` is
+`arm-none-eabi-`, including the trailing hyphen expected by `CROSS_COMPILE`.
+`toolchain.json` describes only **which programs to run**:
+
+```json
+{
+  "name": "arm-none-eabi",
+  "version": "15.3.rel1",
+  "prefix": "arm-none-eabi-",
+  "tools": { "cc": "arm-none-eabi-gcc", "ld": "arm-none-eabi-gcc", ... },
+  "installations": { "linux/amd64": { ... }, "windows/amd64": { ... } }
+}
+```
+
+`target_os`, `target_triple` and `default_flags` are **rejected** in this file —
+they describe a project, not a compiler. Put them in `build.go`:
+
+```go
+func Main(p *api.Package) {
+    p.OnConfig(func(ctx *api.ConfigContext) {
+        ctx.GlobalOption(api.TargetOSOptionName).SetType(api.OptionString).SetDefault("none")
+        ctx.GlobalOption(api.TargetTripleOptionName).SetType(api.OptionString).SetDefault("arm-none-eabi")
+        ctx.AddGlobalCFlags("-mcpu=cortex-m4", "-mthumb")
+        ctx.AddGlobalCxxFlags("-mcpu=cortex-m4", "-mthumb")
+        ctx.AddGlobalLdFlags("-mcpu=cortex-m4", "-mthumb", "--specs=nosys.specs")
+    })
+}
+```
+
+`--specs=nosys.specs` lets basic bare-metal programs link against newlib's syscall
+stubs. It does not make the output a host executable.
 
 `installations` selects archives by the **vmake process host**, independently of
 the compilation target:
@@ -145,27 +177,23 @@ An installed toolchain never resolves a missing compiler from another toolchain
 on `PATH`.
 
 Unsupported hosts and invalid manifests report errors. Old `host` and `install`
-fields must be migrated to `target_triple` and `installations`; custom definitions
-must specify `target_os`. Old installations in a flat toolchains directory are
-not reused across hosts.
-
-`ldflags` includes `--specs=nosys.specs` so basic bare-metal programs can link
-against newlib's syscall stubs. This does not make the output a host executable.
+fields must be migrated to `installations`; `target_os`, `target_triple` and
+`default_flags` must be moved into the project's `build.go`. Old installations in
+a flat toolchains directory are not reused across hosts.
 
 ## Pitfalls
 
 - **Global flags are global.** `ctx.AddGlobalCFlags` / `AddGlobalCxxFlags` /
   `AddGlobalLdFlags` affect *every* target in *every* project on the machine, not
-  just the plugin's own builds. Register them deliberately. (The official `tc`
-  extension uses this to inject `-include vmake_std.h` into all C and C++
-  compilations.)
+  just the plugin's own builds. Register them deliberately; keep CPU/ABI options
+  in the project's `build.go` instead.
 - **`vmakeDir` is the OS user home plus `.vmake`**; use an isolated home for integration tests.
 - **`vmake ext add` requires a git URL** — it runs `git clone`. A plain directory
   path will not work; use `file:///abs/path`.
-- **`SetOnMissing` is dead code for an installed toolchain.**
-  `Manager.SelectToolchain` consults the `onMissing` handler only when
-  `InstallPath` is empty, which is exactly why the declarative `installations` map is
-  the right mechanism here.
+- **`SetOnMissing` is for hand-rolled installation flows.** Definitions with an
+  `installations` entry for the current host get a missing handler automatically;
+  use `ctx.SetOnMissing` only when installation cannot be expressed in
+  `toolchain.json`.
 - **Editing a plugin requires no rebuild**, but the extension repo is a clone:
   after committing upstream, run `vmake ext update` to pull, or edit
   `~/.vmake/extensions/<repo>/` directly while iterating.
