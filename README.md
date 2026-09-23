@@ -30,7 +30,7 @@ definition. A repository may hold any mix of both.
 ## Usage
 
 ```bash
-vmake ext add vmake-tools git@github.com:spock2300/vmake_tools.git
+vmake ext add vmake-tools https://github.com/spock2300/vmake_tools.git
 
 vmake hello greet alice
 vmake hello where
@@ -68,12 +68,8 @@ These are the rules the loader actually enforces (`pkg/plugin/loader.go`).
 
 1. **The import path must be exactly `github.com/spock2300/vmake/pkg/plugin`.**
    Symbols are registered under that literal string and yaegi indexes binary
-   packages by exact path, so any other path fails to resolve. The module was
-   once `gitee.com/spock2300/vmake`; that spelling **no longer works**:
-   ```
-   import "gitee.com/spock2300/vmake/pkg/plugin" error: unable to find source related to: ...
-   ```
-   The same applies to `github.com/spock2300/vmake/pkg/toolchain`.
+   packages by exact path, so any other path fails to resolve. The same applies
+   to `github.com/spock2300/vmake/pkg/toolchain`.
 
 2. **`Main` must be `func(*plugin.Context)`** and declared at top level. Anything
    else reports `Main has wrong signature: <type>`.
