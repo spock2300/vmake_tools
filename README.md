@@ -47,10 +47,11 @@ vmake build --toolchain arm-none-eabi
 ```
 
 The compiler runs on the current host and produces bare-metal ARM ELF output.
-The target platform belongs to the project, not the toolchain: define global
-options `target_os` (`"none"` for bare metal) and `target_triple`
-(`"arm-none-eabi"`) in `build.go`, together with `-mcpu`/`-mthumb` flags. The
-same compiler definition serves any Cortex-M project.
+The definition supplies the target defaults `target_os = "none"` and
+`target_triple = "arm-none-eabi"`. A project declares those global options only
+to see or override them (`ctx.GlobalOption(api.TargetOSOptionName).SetType(api.OptionString)`);
+values can stay unset. CPU/ABI flags (`-mcpu`/`-mthumb`) always belong to the
+project, so the same compiler definition serves any Cortex-M project.
 
 ## `plugin.json`
 
@@ -115,26 +116,30 @@ owns downloading, extraction, validation, and registration.
 
 The stable name is `arm-none-eabi`, version `15.3.rel1`, and `prefix` is
 `arm-none-eabi-`, including the trailing hyphen expected by `CROSS_COMPILE`.
-`toolchain.json` describes only **which programs to run**:
+`toolchain.json` describes **which programs to run** plus optional target
+defaults:
 
 ```json
 {
   "name": "arm-none-eabi",
   "version": "15.3.rel1",
   "prefix": "arm-none-eabi-",
+  "target_os": "none",
+  "target_triple": "arm-none-eabi",
   "tools": { "cc": "arm-none-eabi-gcc", "ld": "arm-none-eabi-gcc", ... },
   "installations": { "linux/amd64": { ... }, "windows/amd64": { ... } }
 }
 ```
 
-`target_os`, `target_triple` and `default_flags` are **rejected** in this file —
-they describe a project, not a compiler. Put them in `build.go`:
+`default_flags` is **rejected** in this file — CPU/ABI flags describe a project,
+not a compiler. Put them in `build.go`; `target_os`/`target_triple` may stay
+there as defaults, and a project can override them:
 
 ```go
 func Main(p *api.Package) {
     p.OnConfig(func(ctx *api.ConfigContext) {
-        ctx.GlobalOption(api.TargetOSOptionName).SetType(api.OptionString).SetDefault("none")
-        ctx.GlobalOption(api.TargetTripleOptionName).SetType(api.OptionString).SetDefault("arm-none-eabi")
+        ctx.GlobalOption(api.TargetOSOptionName).SetType(api.OptionString)     // defaults to "none"
+        ctx.GlobalOption(api.TargetTripleOptionName).SetType(api.OptionString) // defaults to "arm-none-eabi"
         ctx.AddGlobalCFlags("-mcpu=cortex-m4", "-mthumb")
         ctx.AddGlobalCxxFlags("-mcpu=cortex-m4", "-mthumb")
         ctx.AddGlobalLdFlags("-mcpu=cortex-m4", "-mthumb", "--specs=nosys.specs")
@@ -173,9 +178,10 @@ An installed toolchain never resolves a missing compiler from another toolchain
 on `PATH`.
 
 Unsupported hosts and invalid manifests report errors. Old `host` and `install`
-fields must be migrated to `installations`; `target_os`, `target_triple` and
-`default_flags` must be moved into the project's `build.go`. Old installations in
-a flat toolchains directory are not reused across hosts.
+fields must be migrated to `installations`; `default_flags` must be moved into
+the project's `build.go` (while `target_os`/`target_triple` may stay in the
+definition as defaults). Old installations in a flat toolchains directory are
+not reused across hosts.
 
 ## Pitfalls
 
