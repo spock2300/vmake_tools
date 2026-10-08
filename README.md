@@ -1,7 +1,8 @@
 # vmake Extension Plugins
 
 A working vmake extension repository: two plugins, one declarative toolchain, and
-the upstream ARM GNU Toolchain archives for Linux and Windows shipped through Git LFS.
+the upstream ARM GNU Toolchain archives for Linux, Windows, and macOS (Apple
+Silicon) shipped through Git LFS.
 
 Plugins are **interpreted by yaegi at runtime** — no `go build`, no `.so`, no
 `go.mod`. `vmake` interprets the sources on every invocation.
@@ -20,7 +21,8 @@ Plugins are **interpreted by yaegi at runtime** — no `go build`, no `.so`, no
 │   └── toolchain.json                     <- declarative toolchain + host installations
 └── assets/toolchains/
     ├── arm-gnu-toolchain-15.3.rel1-x86_64-arm-none-eabi.tar.xz
-    └── arm-gnu-toolchain-15.3.rel1-mingw-w64-x86_64-arm-none-eabi.zip
+    ├── arm-gnu-toolchain-15.3.rel1-mingw-w64-x86_64-arm-none-eabi.zip
+    └── arm-gnu-toolchain-15.3.rel1-darwin-arm64-arm-none-eabi.tar.xz
 ```
 
 `vmake` walks `~/.vmake/extensions/<repo>/<subdir>/`. A subdirectory containing
@@ -157,10 +159,17 @@ the compilation target:
 |------|---------|------------|
 | `linux/amd64` | `arm-gnu-toolchain-15.3.rel1-x86_64-arm-none-eabi.tar.xz` | `arm-gnu-toolchain-15.3.rel1-x86_64-arm-none-eabi` |
 | `windows/amd64` | `arm-gnu-toolchain-15.3.rel1-mingw-w64-x86_64-arm-none-eabi.zip` | `.` |
+| `darwin/arm64` | `arm-gnu-toolchain-15.3.rel1-darwin-arm64-arm-none-eabi.tar.xz` | `arm-gnu-toolchain-15.3.rel1-darwin-arm64-arm-none-eabi` |
 
-The Windows archive stores `bin/` directly at its root. Both upstream archives
-remain unmodified and live in `assets/toolchains/`, managed by Git LFS. The
-[official release downloads](https://gitlab.arm.com/tooling/gnu-toolchains-for-arm/-/tree/releases/15.3.rel1)
+The Windows archive stores `bin/` directly at its root. The macOS archive is
+built for Apple Silicon only: it ships Mach-O arm64 executables and does not run
+on Intel Macs (`darwin/amd64` is intentionally not declared). The upstream
+archives remain unmodified and live in `assets/toolchains/`, managed by Git LFS.
+On macOS the first installation needs `git lfs` (`brew install git-lfs` and
+`git lfs install`); if Gatekeeper blocks the extracted compiler, clear the
+quarantine attribute, for example
+`xattr -dr com.apple.quarantine ~/.vmake/toolchains/darwin/arm64/arm-none-eabi/15.3.rel1`.
+The [official release downloads](https://gitlab.arm.com/tooling/gnu-toolchains-for-arm/-/tree/releases/15.3.rel1)
 provide the matching archives and checksums. Each
 installation declares its SHA256, which vmake verifies before extraction.
 
